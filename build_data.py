@@ -13,8 +13,17 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 FDJ_DATASETS = {
-    "loto": "https://www.sto.api.fdj.fr/anonymous/service-draw-info/v3/documentations/1a2b3c4d-9876-4562-b3fc-2c963f66afp6",
-    "superloto": "https://www.sto.api.fdj.fr/anonymous/service-draw-info/v3/documentations/1a2b3c4d-9876-4562-b3fc-2c963f66afk6",
+    "loto": [
+        "https://www.sto.api.fdj.fr/anonymous/service-draw-info/v3/documentations/1a2b3c4d-9876-4562-b3fc-2c963f66afm6",
+        "https://www.sto.api.fdj.fr/anonymous/service-draw-info/v3/documentations/1a2b3c4d-9876-4562-b3fc-2c963f66afn6",
+        "https://www.sto.api.fdj.fr/anonymous/service-draw-info/v3/documentations/1a2b3c4d-9876-4562-b3fc-2c963f66afo6",
+        "https://www.sto.api.fdj.fr/anonymous/service-draw-info/v3/documentations/1a2b3c4d-9876-4562-b3fc-2c963f66afp6",
+    ],
+    "superloto": [
+        "https://www.sto.api.fdj.fr/anonymous/service-draw-info/v3/documentations/1a2b3c4d-9876-4562-b3fc-2c963f66afi6",
+        "https://www.sto.api.fdj.fr/anonymous/service-draw-info/v3/documentations/1a2b3c4d-9876-4562-b3fc-2c963f66afj6",
+        "https://www.sto.api.fdj.fr/anonymous/service-draw-info/v3/documentations/1a2b3c4d-9876-4562-b3fc-2c963f66afk6",
+    ],
 }
 REQUIRED = ("date_de_tirage", "boule_1", "boule_2", "boule_3", "boule_4", "boule_5", "numero_chance")
 OUT = Path(__file__).resolve().parent / "dist"
@@ -92,15 +101,16 @@ def build() -> tuple[dict, dict]:
     by_id: dict[str, dict] = {}
     counts = {"loto": 0, "superloto": 0}
 
-    for game, url in FDJ_DATASETS.items():
-        for draw in parse_zip(download(url), game):
-            ident = draw["id"]
-            previous = by_id.get(ident)
-            if previous is not None and signature(previous) != signature(draw):
-                raise RuntimeError(f"conflicting official rows for {ident}")
-            if previous is None:
-                by_id[ident] = draw
-                counts[game] += 1
+    for game, urls in FDJ_DATASETS.items():
+        for url in urls:
+            for draw in parse_zip(download(url), game):
+                ident = draw["id"]
+                previous = by_id.get(ident)
+                if previous is not None and signature(previous) != signature(draw):
+                    raise RuntimeError(f"conflicting official rows for {ident}")
+                if previous is None:
+                    by_id[ident] = draw
+                    counts[game] += 1
 
     draws = sorted(by_id.values(), key=lambda d: (d["date"], 0 if d["game"] == "loto" else 1))
     if not draws:
