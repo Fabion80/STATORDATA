@@ -11,6 +11,7 @@ import urllib.request
 import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 FDJ_DATASETS = {
     "loto": [
@@ -97,13 +98,31 @@ def signature(draw: dict) -> tuple:
     return draw["game"], draw["date"], tuple(draw["numbers"]), draw["chance"]
 
 
+def archive_cutoff(now: datetime | None = None) -> str:
+    """Archive publication is J+1, using the French date (including DST)."""
+    return (now or datetime.now(timezone.utc)).astimezone(ZoneInfo("Europe/Paris")).date().isoformat()
+
+
+def assert_no_regression(draws: list[dict], previous: list[dict]) -> None:
+    by_id = {draw["id"]: draw for draw in draws}
+    for old in previous:
+        current = by_id.get(old["id"])
+        if current is None:
+            raise RuntimeError(f"published draw missing: {old['id']}")
+        if signature(current) != signature(old):
+            raise RuntimeError(f"published draw changed: {old['id']}")
+
+
 def build() -> tuple[dict, dict]:
     by_id: dict[str, dict] = {}
     counts = {"loto": 0, "superloto": 0}
+    cutoff = archive_cutoff()
 
     for game, urls in FDJ_DATASETS.items():
         for url in urls:
             for draw in parse_zip(download(url), game):
+                if draw["date"] >= cutoff:
+                    continue
                 ident = draw["id"]
                 previous = by_id.get(ident)
                 if previous is not None and signature(previous) != signature(draw):
@@ -176,3 +195,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
+

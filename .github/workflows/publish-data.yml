@@ -6,12 +6,19 @@ on:
     branches: [main]
     paths:
       - build_data.py
+      - validate_release.py
+      - test_build_data.py
       - .github/workflows/publish-data.yml
   schedule:
-    - cron: '17 5 1 * *'
+    - cron: '0 18,20 * * *'
+      timezone: Europe/Paris
 
 permissions:
   contents: write
+
+concurrency:
+  group: stator49-data-publication
+  cancel-in-progress: false
 
 jobs:
   publish:
@@ -24,67 +31,50 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: Test publication safeguards
+        run: python3 -m unittest -v test_build_data.py
+
       - name: Build archive from FDJ
         run: python3 build_data.py
 
-      - name: Validate generated assets
-        run: |
-          python3 - <<'PY'
-          import hashlib, json
-          from pathlib import Path
-          archive_path=Path('dist/loto_draws.json')
-          manifest_path=Path('dist/manifest.json')
-          archive=json.loads(archive_path.read_text(encoding='utf-8'))
-          manifest=json.loads(manifest_path.read_text(encoding='utf-8'))
-          draws=archive['draws']
-          assert manifest['schemaVersion']==1
-          assert archive['schemaVersion']==1
-          assert manifest['archiveVersion']==archive['archiveVersion']
-          assert manifest['drawCount']==len(draws)
-          assert manifest['lastDraw']==max(d['date'] for d in draws)
-          assert manifest['drawCounts']['loto']==sum(d['game']=='loto' for d in draws)
-          assert manifest['drawCounts']['superloto']==sum(d['game']=='superloto' for d in draws)
-          assert manifest['drawCounts']['loto'] >= 2814
-          assert manifest['drawCounts']['superloto'] > 0
-          assert all(d['id']==f"{d['game']}:{d['date']}" for d in draws)
-          assert len({d['id'] for d in draws})==len(draws)
-          assert manifest['sha256']==hashlib.sha256(archive_path.read_bytes()).hexdigest()
-          print(json.dumps({
-              'drawCount': manifest['drawCount'],
-              'drawCounts': manifest['drawCounts'],
-              'lastDraw': manifest['lastDraw'],
-              'archiveVersion': manifest['archiveVersion'],
-          }, ensure_ascii=False))
-          PY
+      - name: Validate against the published archive
+        id: validate
+        run: python3 validate_release.py
 
-      - name: Publish or refresh release
+      - name: Publish a complete immutable release
+        if: steps.validate.outputs.changed == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           LAST_DRAW="$(python3 -c "import json; print(json.load(open('dist/manifest.json'))['lastDraw'])")"
-          TAG="data-$LAST_DRAW"
-
+          VERSION="$(python3 -c "import json; print(json.load(open('dist/manifest.json'))['archiveVersion'])")"
+          TAG="data-${VERSION#stator49-fdj-}"
           if gh release view "$TAG" >/dev/null 2>&1; then
+            test "$(gh release view "$TAG" --json isDraft --jq .isDraft)" = true
             gh release upload "$TAG" dist/manifest.json dist/loto_draws.json --clobber
-            gh release edit "$TAG" --title "STATOR49 data — $LAST_DRAW" --notes "Archive publique Loto + Super Loto reconstruite depuis les historiques FDJ."
           else
-            gh release create "$TAG" dist/manifest.json dist/loto_draws.json \
+            gh release create "$TAG" dist/manifest.json dist/loto_draws.json --draft \
               --title "STATOR49 data — $LAST_DRAW" \
-              --notes "Archive publique Loto + Super Loto reconstruite depuis les historiques FDJ." \
-              --latest
+              --notes "Archive publique Loto + Super Loto reconstruite depuis les historiques FDJ."
           fi
+          gh release edit "$TAG" --draft=false --latest
 
       - name: Verify public latest URLs
         run: |
           python3 - <<'PY'
-          import json, urllib.request
+          import hashlib, json, urllib.request
+          from pathlib import Path
           base='https://github.com/Fabion80/STATORDATA/releases/latest/download/'
-          with urllib.request.urlopen(base+'manifest.json',timeout=20) as r:
+          with urllib.request.urlopen(base+'manifest.json',timeout=30) as r:
               manifest=json.load(r)
+          with urllib.request.urlopen(base+'loto_draws.json',timeout=40) as r:
+              data=r.read()
+          expected=json.loads(Path('dist/manifest.json').read_text())
           assert manifest['schemaVersion']==1
-          assert manifest['archiveAsset']=='loto_draws.json'
-          assert manifest['drawCounts']['loto'] >= 2814
-          assert manifest['drawCounts']['superloto'] > 0
+          assert manifest['archiveVersion']==expected['archiveVersion']
+          assert manifest['sha256']==hashlib.sha256(data).hexdigest()
+          assert len(json.loads(data)['draws'])==manifest['drawCount']
           print('Public latest release OK:',manifest['lastDraw'],manifest['drawCount'])
           PY
+

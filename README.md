@@ -23,11 +23,17 @@ La GitHub Action `Publish STATOR49 data` :
 2. vérifie les dates, identités, 5 numéros et numéro Chance ;
 3. reconstruit l'archive complète ;
 4. calcule le SHA-256 ;
-5. publie ou actualise une Release GitHub ;
-6. vérifie que l'URL publique `releases/latest/download` fonctionne.
+5. compare avec la version publiée et refuse toute disparition ou modification d'un résultat connu ;
+6. publie une nouvelle Release complète uniquement si les tirages ont changé ;
+7. vérifie que l'URL publique `releases/latest/download` fonctionne et distribue les fichiers attendus.
 
-Une exécution automatique est programmée le **1er de chaque mois**. Le workflow peut également être lancé manuellement depuis l'onglet **Actions**.
+Une exécution automatique est programmée **chaque jour à 18 h, heure de Paris**, avec une seconde tentative à **20 h**. Le fuseau `Europe/Paris` suit le passage à l'heure d'été et d'hiver. Le déclenchement peut être retardé par la file d'attente GitHub Actions.
+
+L'archive contient les tirages datés au plus tard de la veille : mise à jour à **J+1**, dès que FDJ a alimenté ses ZIP. Les tirages plus récents encore absents de l'archive sont récupérés directement sur les pages officielles par l'application. Le workflow peut également être lancé manuellement depuis l'onglet **Actions**.
+
+Une archive inchangée garde sa version et son empreinte : les téléphones ne retéléchargent pas toute la base à chaque ouverture. En cas d'échec ou d'archive incomplète, la dernière Release valide reste disponible. Les nouvelles Releases sont préparées en brouillon avec leurs deux fichiers avant de devenir publiques.
 
 ## Important
 
 STATORDATA est un dépôt technique du projet STATOR49. Il n'est pas un dépôt officiel FDJ et n'implique aucune affiliation avec FDJ.
+
