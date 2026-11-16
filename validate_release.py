@@ -10,7 +10,10 @@ from build_data import archive_cutoff, assert_no_regression
 
 
 def get_bytes(url):
-    request = urllib.request.Request(url, headers={"User-Agent": "STATOR49-DATA/1.1"})
+    headers = {"User-Agent": "STATOR49-DATA/2.0"}
+    if url.startswith("https://api.github.com/repos/Fabion80/STATORDATA/") and os.environ.get("GH_TOKEN"):
+        headers["Authorization"] = "Bearer "+os.environ["GH_TOKEN"]
+    request = urllib.request.Request(url, headers=headers)
     with urllib.request.urlopen(request, timeout=40) as response:
         data = response.read(4_000_001)
     if len(data) > 4_000_000:

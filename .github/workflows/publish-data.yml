@@ -44,6 +44,8 @@ jobs:
 
       - name: Validate against the published archive
         id: validate
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: python3 validate_release.py
 
       - name: Publish a complete immutable release
