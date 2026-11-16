@@ -2,15 +2,20 @@ name: Publish STATOR49 data
 
 on:
   workflow_dispatch:
+  pull_request:
+    branches: [main]
   push:
     branches: [main]
     paths:
+      - current_data.py
+      - publish_feed.py
+      - test_current_data.py
       - build_data.py
       - validate_release.py
       - test_build_data.py
       - .github/workflows/publish-data.yml
   schedule:
-    - cron: '0 18,20 * * *'
+    - cron: '17 7,18,20,21,22,23 * * *'
       timezone: Europe/Paris
 
 permissions:
@@ -32,17 +37,19 @@ jobs:
           python-version: '3.12'
 
       - name: Test publication safeguards
-        run: python3 -m unittest -v test_build_data.py
+        run: python3 -m unittest -v
 
       - name: Build archive from FDJ
-        run: python3 build_data.py
+        run: python3 current_data.py
 
       - name: Validate against the published archive
         id: validate
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: python3 validate_release.py
 
       - name: Publish a complete immutable release
-        if: steps.validate.outputs.changed == 'true'
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && steps.validate.outputs.changed == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -60,21 +67,8 @@ jobs:
           fi
           gh release edit "$TAG" --draft=false --latest
 
-      - name: Verify public latest URLs
-        run: |
-          python3 - <<'PY'
-          import hashlib, json, urllib.request
-          from pathlib import Path
-          base='https://github.com/Fabion80/STATORDATA/releases/latest/download/'
-          with urllib.request.urlopen(base+'manifest.json',timeout=30) as r:
-              manifest=json.load(r)
-          with urllib.request.urlopen(base+'loto_draws.json',timeout=40) as r:
-              data=r.read()
-          expected=json.loads(Path('dist/manifest.json').read_text())
-          assert manifest['schemaVersion']==1
-          assert manifest['archiveVersion']==expected['archiveVersion']
-          assert manifest['sha256']==hashlib.sha256(data).hexdigest()
-          assert len(json.loads(data)['draws'])==manifest['drawCount']
-          print('Public latest release OK:',manifest['lastDraw'],manifest['drawCount'])
-          PY
-
+      - name: Publish the lightweight feed after checking the immutable release
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 publish_feed.py

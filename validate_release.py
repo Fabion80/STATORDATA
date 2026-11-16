@@ -10,7 +10,10 @@ from build_data import archive_cutoff, assert_no_regression
 
 
 def get_bytes(url):
-    request = urllib.request.Request(url, headers={"User-Agent": "STATOR49-DATA/1.1"})
+    headers = {"User-Agent": "STATOR49-DATA/2.0"}
+    if url.startswith("https://api.github.com/repos/Fabion80/STATORDATA/") and os.environ.get("GH_TOKEN"):
+        headers["Authorization"] = "Bearer "+os.environ["GH_TOKEN"]
+    request = urllib.request.Request(url, headers=headers)
     with urllib.request.urlopen(request, timeout=40) as response:
         data = response.read(4_000_001)
     if len(data) > 4_000_000:
@@ -28,7 +31,7 @@ def main():
     assert manifest["archiveAsset"] == "loto_draws.json"
     assert manifest["drawCount"] == len(draws)
     assert manifest["lastDraw"] == max(d["date"] for d in draws)
-    assert manifest["lastDraw"] < archive_cutoff()
+    assert manifest["lastDraw"] <= archive_cutoff()
     assert manifest["drawCounts"]["loto"] == sum(d["game"] == "loto" for d in draws)
     assert manifest["drawCounts"]["superloto"] == sum(d["game"] == "superloto" for d in draws)
     assert manifest["drawCounts"]["loto"] >= 2814
@@ -46,6 +49,12 @@ def main():
     assert previous_manifest["archiveVersion"] == previous["archiveVersion"]
     assert_no_regression(draws, previous["draws"])
     changed = manifest["archiveVersion"] != previous_manifest["archiveVersion"]
+    if not changed:
+        # Keep the exact already published bytes when only check/calendar metadata changed.
+        Path("dist/loto_draws.json").write_bytes(previous_bytes)
+        manifest["sha256"] = previous_manifest["sha256"]
+        manifest["generatedAt"] = previous_manifest["generatedAt"]
+        Path("dist/manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2)+"\n", encoding="utf-8")
     print(f"Validated: {manifest['drawCount']} draws through {manifest['lastDraw']}; changed={changed}")
     if os.environ.get("GITHUB_OUTPUT"):
         with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
