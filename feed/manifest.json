@@ -1,27 +1,27 @@
 {
   "schemaVersion": 1,
   "feedVersion": 1,
-  "archiveVersion": "stator49-fdj-2026-11-23-2754ce4fe3cc",
-  "lastDraw": "2026-11-23",
-  "drawCount": 2900,
+  "archiveVersion": "stator49-fdj-2026-11-25-10849f49afe0",
+  "lastDraw": "2026-11-25",
+  "drawCount": 2901,
   "drawCounts": {
-    "loto": 2838,
+    "loto": 2839,
     "superloto": 62
   },
   "archiveAsset": "loto_draws.json",
-  "sha256": "2426fed19e79911b53a8b215aafb6d6de0f3136090ae4685f827944cab9b043d",
-  "generatedAt": "2026-11-24T04:17:47Z",
-  "checkedAt": "2026-11-25T17:12:08Z",
+  "sha256": "626b84c79858bd8e7e145e86ccb7d054a91be3a75a6125e0bbbe3a7a2889047a",
+  "generatedAt": "2026-11-26T00:59:31Z",
+  "checkedAt": "2026-11-26T00:59:31Z",
   "coverageConfirmed": true,
   "expectedPublishedIds": [
-    "loto:2026-11-23"
+    "loto:2026-11-25"
   ],
   "nextDraw": {
-    "id": "loto:2026-11-25",
+    "id": "loto:2026-11-28",
     "game": "loto",
-    "date": "2026-11-25",
-    "plannedAt": "2026-11-25T20:55:00.000+01:00"
+    "date": "2026-11-28",
+    "plannedAt": "2026-11-28T20:55:00.000+01:00"
   },
   "source": "FDJ — collecte centralisée STATORDATA",
-  "archiveUrl": "https://github.com/Fabion80/STATORDATA/releases/download/data-2026-11-23-2754ce4fe3cc/loto_draws.json"
+  "archiveUrl": "https://github.com/Fabion80/STATORDATA/releases/download/data-2026-11-25-10849f49afe0/loto_draws.json"
 }
